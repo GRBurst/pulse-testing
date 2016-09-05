@@ -15,13 +15,13 @@
 #include <config.h>
 #endif
 #include <errno.h>
+#include <fftw3.h>
 #include <pulse/error.h>
 #include <pulse/simple.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
-/* #include <fftw3.h> */
 #define BUFSIZE 1024
 /* A simple routine calling UNIX write() in a loop */
 static ssize_t loop_write(int fd, const void* data, size_t size)
@@ -63,7 +63,7 @@ int main(int argc, char* argv[])
     fftw_plan fft_plan = fftw_plan_dft_r2c_1d(BUFSIZE, fft_in, fft_out, FFTW_FORWARD);
 
 
-    /*     (')  
+    /*     (')
      *    / /
      *   / /
      *  ( ) )
