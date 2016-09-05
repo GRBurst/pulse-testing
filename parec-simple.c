@@ -14,6 +14,7 @@
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
+#include <SDL2/SDL.h>
 #include <errno.h>
 #include <fftw3.h>
 #include <pulse/error.h>
@@ -21,10 +22,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include <SDL2/SDL.h>
 
-#define BUFSIZE 1024
-#define WIDTH  640
+#define BUFSIZE (44100 / 60)
+#define WIDTH 640
 #define HEIGHT 480
 
 /* A simple routine calling UNIX write() in a loop */
@@ -47,7 +47,7 @@ int main(int argc, char* argv[])
 {
     SDL_Init(SDL_INIT_VIDEO);
     atexit(SDL_Quit);
-    
+
     /* The sample type to use */
     static const pa_sample_spec ss = {
         .format = PA_SAMPLE_S16LE, //Signed 16 Bit PCM, native endian.
@@ -63,50 +63,47 @@ int main(int argc, char* argv[])
         goto finish;
     }
 
-    SDL_Window* window;
-    SDL_Renderer* renderer;
-    SDL_CreateWindowAndRenderer(WIDTH, HEIGHT, 0, &window, &renderer);
+    SDL_Window* window = SDL_CreateWindow("title", 0, 0, WIDTH, HEIGHT, 0);
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
 
     int16_t buf[BUFSIZE];
     double fft_in[BUFSIZE];
 
-    fftw_complex *fft_out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * (2*(BUFSIZE / 2 + 1)));
+    fftw_complex* fft_out = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * (2 * (BUFSIZE / 2 + 1)));
     fftw_plan fft_plan = fftw_plan_dft_r2c_1d(BUFSIZE, fft_in, fft_out, FFTW_FORWARD);
 
     int running = 1;
 
-    while(running) {
+    while (running) {
 
-      SDL_RenderClear(renderer);
+        SDL_RenderClear(renderer);
 
-      SDL_Event event;
-      while( SDL_PollEvent(&event) ) {
-        switch(event.type) {
-          case SDL_QUIT:
-            running = 0;
-            break;
-          default:
-            break;
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            switch (event.type) {
+            case SDL_QUIT:
+                running = 0;
+                break;
+            default:
+                break;
+            }
         }
-      }
 
+        /* Record some data ... */
+        if (pa_simple_read(s, buf, sizeof(buf), &error) < 0) {
+            fprintf(stderr, __FILE__ ": pa_simple_read() failed: %s\n", pa_strerror(error));
+            running = 1;
+        }
 
+        int i, j;
 
-      /* Record some data ... */
-      if (pa_simple_read(s, buf, sizeof(buf), &error) < 0) {
-          fprintf(stderr, __FILE__ ": pa_simple_read() failed: %s\n", pa_strerror(error));
-          running = 1;
-      }
+        for (i = 0; i < BUFSIZE; i += 1) {
+            double normalized = (double)buf[i] / (double)((1 << 15) - 1);
+            int y = i * HEIGHT / BUFSIZE;
+            SDL_RenderDrawPoint(renderer, normalized * WIDTH / 2 + WIDTH / 2, y);
+        }
 
-      int i, j;
-
-      for (i = 0; i < BUFSIZE; i += 16) {
-          double normalized = (double)buf[i] / (double)((1 << 15) - 1);
-          int y = i * HEIGHT / BUFSIZE;
-          SDL_RenderDrawPoint(renderer, normalized * WIDTH/2 + WIDTH/2, y);
-      }
-
-      SDL_RenderPresent(renderer);
+        SDL_RenderPresent(renderer);
     }
     ret = 0;
 finish:
