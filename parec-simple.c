@@ -62,8 +62,12 @@ int main(int argc, char* argv[])
     fftw_complex *fft_out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * (2*(BUFSIZE / 2 + 1));
     fftw_plan fft_plan = fftw_plan_dft_r2c_1d(BUFSIZE, fft_in, fft_out, FFTW_FORWARD);
 
-
-    /*     (')
+    /*          (')
+    /*         / /
+    /*        / /
+    /*       / /
+    /*      / /
+    /*     / /
      *    / /
      *   / /
      *  ( ) )
